@@ -24,23 +24,25 @@ from tqdm import tqdm
 
 from models import IMCNN, MRIMCNN, TransConv, UDUCNN, UUDCNN
 
-# Expected file names inside --weights-dir.
+# Expected file names inside --weights-dir. The @256 names match the training
+# scripts' default output paths; the *_512 variants are the optional second
+# stage (train with --lr-size 256 and a matching --checkpoint name).
 WEIGHT_FILES = {
-    "transconv1": "TransConv_weight1.pt",
-    "transconv2": "TransConv_weight2.pt",
-    "uducnn": "UDUCNN_weight1.pth",
-    "uudcnn": "UUDCNN_weight1.pt",
-    "imcnn1": "IMCNN_weight1_k2.pt",
-    "imcnn2": "IMCNN_weight2_k2.pt",
-    "mrimcnn1": "MRIMCNN_weight1_k4.pt",
-    "mrimcnn2": "MRIMCNN_weight2_k2.pt",
+    "transconv1": "transconv.pt",
+    "transconv2": "transconv_512.pt",
+    "uducnn": "uducnn.pt",
+    "uudcnn": "uudcnn.pt",
+    "imcnn1": "imcnn.pt",
+    "imcnn2": "imcnn_512.pt",
+    "mrimcnn1": "mrimcnn.pt",
+    "mrimcnn2": "mrimcnn_512.pt",
 }
 
 # Region-sensing model hyper-parameters matching those weights.
 SENSING_MODELS = {
     "imcnn1": (IMCNN, dict(image_size=256, patch_size=2, temperature=0.05)),
     "imcnn2": (IMCNN, dict(image_size=512, patch_size=2, temperature=0.05)),
-    "mrimcnn1": (MRIMCNN, dict(image_size=256, patch_size=4, temperature=0.05)),
+    "mrimcnn1": (MRIMCNN, dict(image_size=256, patch_size=2, temperature=0.05)),
     "mrimcnn2": (MRIMCNN, dict(image_size=512, patch_size=2, temperature=0.05)),
 }
 
@@ -134,18 +136,18 @@ def main():
 
         print(f"[TransConv 128->256] Average PSNR: {_evaluate(image_paths, fn):.4f}")
 
-    # --- Pipeline 2: UDUCNN + MRIMCNN mask blend at 256 ---------------------
-    if uducnn is not None and mrimcnn1 is not None:
+    # --- Pipeline 2: UUDCNN + MRIMCNN mask blend at 256 (final model) -------
+    if uudcnn is not None and mrimcnn1 is not None:
         def fn(hr):
             hr256 = hr.resize((256, 256), Image.BICUBIC)
             lr = hr256.resize((128, 128), Image.BICUBIC)
             hr_t = to_tensor(hr256).unsqueeze(0).to(device)
             lr_t = to_tensor(lr).unsqueeze(0).to(device)
-            up = uducnn(lr_t)
+            up = uudcnn(lr_t)
             out = blend(up, hr_t, mrimcnn1(up)).squeeze(0).cpu()
             return to_tensor(hr256), out
 
-        print(f"[UDUCNN + MRIMCNN @256] Average PSNR: {_evaluate(image_paths, fn):.4f}")
+        print(f"[UUDCNN + MRIMCNN @256] Average PSNR: {_evaluate(image_paths, fn):.4f}")
 
     # --- Pipeline 3: two-stage TransConv 128 -> 256 -> 512 ------------------
     if transconv1 is not None and transconv2 is not None and mrimcnn1 is not None:

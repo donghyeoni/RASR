@@ -4,7 +4,7 @@
 
 **RASR** is a PyTorch pipeline for image super-resolution / reconstruction
 under a memory budget: **MRIMCNN** selects the most important patches and
-**UDUCNN** reconstructs the image around them.
+**UUDCNN** reconstructs the image around them.
 
 ## Overview
 
@@ -30,8 +30,8 @@ memory budget: stage (a) reconstructs 128 → 256 against the 256² reference,
 and stage (b) repeats the same composition at 256 → 512.
 
 Each model lives in its own module under `models/`. The final pipeline uses
-**UDUCNN** for reconstruction and **MRIMCNN** for patch selection; the rest
-are compared against them.
+**UUDCNN** for reconstruction and **MRIMCNN** for patch selection — the best
+of each family in the measurements below; the rest are compared against them.
 
 - **Upscalers** (all net 2x)
   - `TransConv` — single transposed-conv upscaler
@@ -85,11 +85,11 @@ data/COCO/Test/    # held-out test images
 pip install -r requirements.txt
 
 # 1. Train an upscaler (transconv / uducnn / uudcnn)
-python train_upscale.py --data-dir data/COCO/Train --model uducnn --epochs 50
+python train_upscale.py --data-dir data/COCO/Train --model uudcnn --epochs 50
 
 # 2. Train region selection (imcnn / mrimcnn) through the frozen upscaler
 python train_region.py --data-dir data/COCO/Train --model mrimcnn \
-    --upscaler uducnn --upscaler-ckpt weights/uducnn.pt
+    --upscaler uudcnn --upscaler-ckpt weights/uudcnn.pt
 
 # 3. Evaluate PSNR across the pipelines
 python test.py --data-dir data/COCO/Test --weights-dir weights
@@ -110,30 +110,27 @@ comparison.
 
 ## Results
 
-Numbers from the COCO training runs (average PSNR over the test set).
+Measured with this repository's code: every model trained for 50 epochs
+(batch 4, Adam 1e-3, StepLR) on **3,000 COCO train2017 images** and evaluated
+as the average PSNR over **500 COCO val2017 images** (128 → 256).
 
-Upscalers (128 → 256):
+Upscalers:
 
-| Model | SRCNN (baseline) | TransConv | UDUCNN | UUDCNN |
+| Model | SRCNN (vanilla) | TransConv | UDUCNN | UUDCNN |
 | --- | --- | --- | --- | --- |
-| Parameters | 56K | 160K | 260K | 450K |
-| Training time | 55m | 73m | 1h 52m | 4h |
-| Avg PSNR (dB) | 28.21 | 30.85 | **31.23** | 31.13 |
+| Parameters | 56K | 209K | 264K | 376K |
+| Avg PSNR (dB) | 28.21 | 30.78 | 30.99 | **31.10** |
 
-Region selection (top-K blending on top of a pretrained UDUCNN, same memory
-budget for every column):
+Region selection (mask patch size 2, hard top-K at evaluation) on top of the
+best upscaler, UUDCNN:
 
-| Selection | Random (baseline) | MRIMCNN (patch 1) | MRIMCNN (patch 2) | MRIMCNN (patch 4) |
-| --- | --- | --- | --- | --- |
-| Parameters | — | 16.6K | 16.6K | 16.6K |
-| Avg PSNR (dB) | ~29.8 | 36.72 | **36.81** | 36.54 |
+| Pipeline | UUDCNN only | UUDCNN + IMCNN | UUDCNN + MRIMCNN |
+| --- | --- | --- | --- |
+| Mask parameters | — | 5.5K | 16.6K |
+| Avg PSNR (dB) | 31.10 | 36.90 | **36.98** |
 
-Learned selection buys roughly **+7 dB** over spending the same patch budget
-at random; average pooling beats max pooling by ~1 dB when compressing the
-importance map into the patch grid. (`IMCNN`, the single-resolution variant,
-has 5.5K parameters.)
+Stage by stage on a COCO val2017 image — the mask spends the patch budget on
+the detail-heavy regions (face, hat boundary) and skips the flat background,
+lifting this image from 23.44 dB to 39.37 dB:
 
-A 512² COCO test image next to the cascaded `UUDCNN` → `IMCNN` reconstruction
-from those runs:
-
-![COCO qualitative comparison](assets/coco_uudcnn_imcnn.png)
+![stage-by-stage result](assets/result_stages.png)
