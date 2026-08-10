@@ -8,36 +8,40 @@ under a memory budget: **MRIMCNN** selects the most important patches and
 
 ## Overview
 
-RASR models a drone (UAV) whose capture buffer is limited to **128² pixels
-per shot**, working with a server that has no such limit:
+A reconnaissance UAV can capture only **128² pixels per shot**, at any
+altitude — flying high covers the whole scene coarsely, flying low sees a
+small area sharply. RASR pairs the UAV with a server that has no such limit
+and learns **where each lower, sharper pass should look**:
 
-1. The drone captures the whole scene at low resolution (128²) and sends it
-   to the server.
-2. The server upscales it 2x with a CNN and predicts a per-patch **importance
-   map** over the upscaled view, then sends back the coordinates of the
-   **top-K most important patches** — K is chosen so the patches total
-   another 128² pixels (`K = 128² / patch_size²`).
-3. The drone captures only those regions at high resolution — one more 128²
-   shot — and sends them back.
-4. The server blends the real patches into its upscaled base:
+1. **Highest pass** — the UAV captures the whole scene in one 128² shot and
+   sends it to the server.
+2. The server upscales the shot 2x with a CNN and predicts a per-patch
+   **importance map** over the upscaled view, then replies with the
+   coordinates of the **top-K most important patches** — K sized so the
+   patches fill exactly one more 128² shot (`K = 128² / patch_size²`).
+3. **Mid pass** — the UAV descends and captures just those regions at twice
+   the ground resolution; the server blends them into its upscaled base:
 
    ```
    reconstructed = upscaled + (hr - upscaled) * mask
    ```
 
-The server ends up with a 256² image for which only 2 × 128² pixels were ever
-captured and transmitted; repeating the loop once more yields 512² from
-3 × 128² captures. Evaluation simulates the drone's shots by bicubic-resizing
-a source image (see Dataset).
+4. **Lowest pass** — the same loop repeats on the 256² reconstruction,
+   yielding a 512² image.
+
+The server ends up with a 512² reconstruction while the UAV captured and
+transmitted only 3 × 128² pixels — about 19% of a full-resolution scan.
+Evaluation simulates the UAV's shots by bicubic-resizing a source image (see
+Dataset).
 
 ## Pipeline
 
 ![RASR two-stage pipeline](assets/pipeline.svg)
 
-Each stage upscales 2x (Reconstruction) and then blends in the true
-high-resolution patches selected by the importance mask (Sensing) under the
-memory budget: stage (a) reconstructs 128 → 256 against the 256² reference,
-and stage (b) repeats the same composition at 256 → 512.
+Each stage upscales 2x (Reconstruction) and then blends in the real patches
+captured by the next, lower pass (Sensing), each pass spending the same 128²
+budget: stage (a) is the mid-altitude pass reconstructing 128 → 256, and
+stage (b) is the lowest pass repeating the composition at 256 → 512.
 
 Each model lives in its own module under `models/`. The final pipeline uses
 **UUDCNN** for reconstruction and **MRIMCNN** for patch selection — the best
