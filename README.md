@@ -61,7 +61,6 @@ RASR/
 ├── train_region.py    # train region selection through a frozen upscaler
 ├── test.py            # PSNR evaluation of the pipelines
 ├── assets/            # result figures (shown below)
-├── docs/              # project presentation
 └── requirements.txt
 ```
 
@@ -111,8 +110,7 @@ comparison.
 
 ## Results
 
-Numbers from the COCO training runs (average PSNR over the test set; details
-in the presentation under `docs/`).
+Numbers from the COCO training runs (average PSNR over the test set).
 
 Upscalers (128 → 256):
 
