@@ -8,17 +8,27 @@ under a memory budget: **MRIMCNN** selects the most important patches and
 
 ## Overview
 
-A learned **region-sensing** module predicts a per-patch importance map and,
-under a fixed memory budget `K`, keeps only the **top-K most important patches**
-at high resolution. The retained patches are blended into a CNN-upscaled base
-image,
+RASR models a drone (UAV) whose capture buffer is limited to **128² pixels
+per shot**, working with a server that has no such limit:
 
-```
-reconstructed = upscaled + (hr - upscaled) * mask
-```
+1. The drone captures the whole scene at low resolution (128²) and sends it
+   to the server.
+2. The server upscales it 2x with a CNN and predicts a per-patch **importance
+   map** over the upscaled view, then sends back the coordinates of the
+   **top-K most important patches** — K is chosen so the patches total
+   another 128² pixels (`K = 128² / patch_size²`).
+3. The drone captures only those regions at high resolution — one more 128²
+   shot — and sends them back.
+4. The server blends the real patches into its upscaled base:
 
-modelling a memory-constrained sensing device (e.g. a UAV) that cannot afford
-to fetch every patch at full resolution.
+   ```
+   reconstructed = upscaled + (hr - upscaled) * mask
+   ```
+
+The server ends up with a 256² image for which only 2 × 128² pixels were ever
+captured and transmitted; repeating the loop once more yields 512² from
+3 × 128² captures. Evaluation simulates the drone's shots by bicubic-resizing
+a source image (see Dataset).
 
 ## Pipeline
 
@@ -41,10 +51,8 @@ of each family in the measurements below; the rest are compared against them.
   - `IMCNN` — single-resolution importance-mask CNN
   - `MRIMCNN` — multi-resolution importance-mask CNN (fuses full/½/¼ scales)
 
-The memory budget is `total_memory = 128 * 128`, so `K = total_memory / patch_size²`
-patches are kept. Models are trained with MSE loss, Adam, and a StepLR
-schedule, and evaluated by PSNR, including a two-stage `128 -> 256 -> 512`
-reconstruction.
+Models are trained with MSE loss, Adam, and a StepLR schedule, and evaluated
+by PSNR, including a two-stage `128 -> 256 -> 512` reconstruction.
 
 ## Structure
 
