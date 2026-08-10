@@ -61,7 +61,7 @@ by PSNR, including a two-stage `128 -> 256 -> 512` reconstruction.
 ## Structure
 
 ```
-RASR/
+RASR-SuperResolution/
 ├── models/            # one module per model
 │   ├── blocks.py      # ResidualBlock, ResidualBlock2
 │   ├── transconv.py   # TransConv
