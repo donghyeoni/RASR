@@ -2,9 +2,10 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg) ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c.svg)
 
-**RASR** is a PyTorch pipeline for image super-resolution / reconstruction
-under a memory budget: **MRIMCNN** selects the most important patches and
-**UUDCNN** reconstructs the image around them.
+**RASR** reconstructs a **512² image from only 3 × 128² captured pixels**
+(~19% of a full scan): **MRIMCNN** learns *where* a capture-limited UAV
+should look next, and **UUDCNN** reconstructs the image around what it
+captured — **+3.4 dB** over spending the same capture budget at random.
 
 ## Overview
 
@@ -133,13 +134,23 @@ Upscalers:
 | Parameters | 56K | 209K | 264K | 376K |
 | Avg PSNR (dB) | 28.21 | 30.78 | 30.99 | **31.10** |
 
-Region selection (mask patch size 2, hard top-K at evaluation) on top of the
-best upscaler, UUDCNN:
+Region selection on top of the best upscaler (UUDCNN), sweeping the mask
+patch size under the fixed capture budget (`K = 128² / patch_size²`, hard
+top-K at evaluation):
 
-| Pipeline | UUDCNN only | UUDCNN + IMCNN | UUDCNN + MRIMCNN |
-| --- | --- | --- | --- |
-| Mask parameters | — | 5.5K | 16.6K |
-| Avg PSNR (dB) | 31.10 | 36.90 | **36.98** |
+![patch-size sweep](assets/region_sweep.png)
+
+Both learned masks peak at patch size 2 and beat random selection at every
+patch size (IMCNN: 5.5K parameters, MRIMCNN: 16.6K). The random baseline is
+flat — under a fixed budget, *where* the patches go is what matters, not how
+finely they are cut.
+
+Two-stage reconstruction (128 → 256 → 512, masks applied at both passes,
+PSNR on the 512² output):
+
+| Pipeline | UUDCNN cascade | + Random | + IMCNN | + MRIMCNN |
+| --- | --- | --- | --- | --- |
+| Avg PSNR (dB) | 27.15 | 28.15 | 31.53 | **31.57** |
 
 Stage by stage on a COCO val2017 image — the mask spends the patch budget on
 the detail-heavy regions (face, hat boundary) and skips the flat background,
