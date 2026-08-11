@@ -152,8 +152,10 @@ PSNR on the 512² output):
 | --- | --- | --- | --- | --- |
 | Avg PSNR (dB) | 27.15 | 28.15 | 31.53 | **31.57** |
 
-Stage by stage on a COCO val2017 image — the mask spends the patch budget on
-the detail-heavy regions (face, hat boundary) and skips the flat background,
-lifting this image from 23.44 dB to 39.37 dB:
+Both passes on a COCO val2017 image — the mask spends each pass's budget on
+the detail-heavy regions (face, hat boundary) and skips the flat background.
+The mid pass lifts this image from 23.61 dB to 39.48 dB; the lowest pass,
+whose fixed budget now covers only 6.25% of the 512² frame, still adds
++2.5 dB (29.39 → 31.88):
 
 ![stage-by-stage result](assets/result_stages.png)
