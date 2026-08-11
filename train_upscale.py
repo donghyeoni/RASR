@@ -103,7 +103,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", required=True,
                         help="Folder of high-resolution training images (e.g. COCO)")
-    parser.add_argument("--model", default="uducnn", choices=sorted(UPSCALERS),
+    parser.add_argument("--model", default="uudcnn", choices=sorted(UPSCALERS),
                         help="Upscaler to train")
     parser.add_argument("--lr-size", type=int, default=128,
                         help="Low-resolution input side; the HR target is 2x this")

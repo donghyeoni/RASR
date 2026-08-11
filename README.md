@@ -44,6 +44,8 @@ captured by the next, lower pass (Sensing), each pass spending the same 128²
 budget: stage (a) is the mid-altitude pass reconstructing 128 → 256, and
 stage (b) is the lowest pass repeating the composition at 256 → 512.
 
+## Models
+
 Each model lives in its own module under `models/`. The final pipeline uses
 **UUDCNN** for reconstruction and **MRIMCNN** for patch selection — the best
 of each family in the measurements below; the rest are compared against them.
@@ -74,7 +76,8 @@ RASR/
 ├── train_region.py    # train region selection through a frozen upscaler
 ├── test.py            # PSNR evaluation of the pipelines
 ├── assets/            # result figures (shown below)
-└── requirements.txt
+├── requirements.txt
+└── LICENSE            # MIT
 ```
 
 ## Dataset
@@ -98,13 +101,18 @@ data/COCO/Test/    # held-out test images
 pip install -r requirements.txt
 
 # 1. Train an upscaler (transconv / uducnn / uudcnn)
-python train_upscale.py --data-dir data/COCO/Train --model uudcnn --epochs 50
+python train_upscale.py --data-dir data/COCO/Train --model uudcnn --seed 0
 
 # 2. Train region selection (imcnn / mrimcnn) through the frozen upscaler
 python train_region.py --data-dir data/COCO/Train --model mrimcnn \
-    --upscaler uudcnn --upscaler-ckpt weights/uudcnn.pt
+    --upscaler uudcnn --upscaler-ckpt weights/uudcnn.pt --seed 0
 
-# 3. Evaluate PSNR across the pipelines
+# 3. For the second stage (256 -> 512), train the masks at the 512 scale
+python train_region.py --data-dir data/COCO/Train --model mrimcnn \
+    --upscaler uudcnn --upscaler-ckpt weights/uudcnn.pt --seed 0 \
+    --lr-size 256 --checkpoint weights/mrimcnn_512.pt
+
+# 4. Evaluate PSNR across the pipelines
 python test.py --data-dir data/COCO/Test --weights-dir weights
 ```
 
@@ -124,8 +132,8 @@ comparison.
 ## Results
 
 Measured with this repository's code: every model trained for 50 epochs
-(batch 4, Adam 1e-3, StepLR) on **3,000 COCO train2017 images** and evaluated
-as the average PSNR over **500 COCO val2017 images** (128 → 256).
+(batch 4, Adam 1e-3, StepLR, seed 0) on **3,000 COCO train2017 images** and
+evaluated as the average PSNR over **500 COCO val2017 images**.
 
 Upscalers:
 

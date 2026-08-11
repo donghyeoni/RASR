@@ -181,6 +181,23 @@ def main():
 
         print(f"[UUDCNN + IMCNN two-stage 128->256->512] Average PSNR: {_evaluate(image_paths, fn):.4f}")
 
+    # --- Pipeline 5: two-stage UUDCNN + MRIMCNN 128 -> 256 -> 512 (final) ---
+    if uudcnn is not None and mrimcnn1 is not None and mrimcnn2 is not None:
+        def fn(hr):
+            hr512 = hr.resize((512, 512), Image.BICUBIC)
+            hr256 = hr512.resize((256, 256), Image.BICUBIC)
+            hr128 = hr512.resize((128, 128), Image.BICUBIC)
+            hr_full = to_tensor(hr512).unsqueeze(0).to(device)
+            hr_mid = to_tensor(hr256).unsqueeze(0).to(device)
+            lr_t = to_tensor(hr128).unsqueeze(0).to(device)
+            step1 = uudcnn(lr_t)
+            step2 = blend(step1, hr_mid, mrimcnn1(step1))
+            step3 = uudcnn(step2)
+            out = blend(step3, hr_full, mrimcnn2(step3)).squeeze(0).cpu()
+            return to_tensor(hr512), out
+
+        print(f"[UUDCNN + MRIMCNN two-stage 128->256->512] Average PSNR: {_evaluate(image_paths, fn):.4f}")
+
     # --- Qualitative visualization -----------------------------------------
     if args.viz_image and os.path.isfile(args.viz_image) and uudcnn is not None:
         hr_512 = Image.open(args.viz_image).convert("RGB")

@@ -74,8 +74,8 @@ def main():
                         help="Pretrained upscaler checkpoint (train with train_upscale.py first)")
     parser.add_argument("--lr-size", type=int, default=128,
                         help="Low-resolution input side; the mask sees the 2x upscaled image")
-    parser.add_argument("--patch-size", type=int, default=4,
-                        help="Importance-mask patch size")
+    parser.add_argument("--patch-size", type=int, default=2,
+                        help="Importance-mask patch size (2 was best in our sweep)")
     parser.add_argument("--temperature", type=float, default=0.05,
                         help="Softmax temperature of the soft mask")
     parser.add_argument("--epochs", type=int, default=50)
